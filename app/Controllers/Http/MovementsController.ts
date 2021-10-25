@@ -83,7 +83,6 @@ export default class MovementsController {
   }
 
   public async getAllMovement({ response }: HttpContextContract) {
-    const a = new Date();
     const date = DateTime.fromFormat('31/10/2021', 'dd/MM/y');
 
     return response.ok(date);
