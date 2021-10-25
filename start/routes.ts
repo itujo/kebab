@@ -18,8 +18,24 @@
 |
 */
 
+import HealthCheck from '@ioc:Adonis/Core/HealthCheck';
 import Route from '@ioc:Adonis/Core/Route';
 
 Route.get('/', async ({ view }) => {
   return view.render('welcome');
+});
+
+Route.group(() => {
+  Route.group(() => {
+    Route.post('import/:transporterId', 'MovementsController.import');
+    Route.get('', 'MovementsController.getAllMovement');
+  }).prefix('movement');
+})
+  .prefix('v1')
+  .prefix('api');
+
+Route.get('health', async ({ response }) => {
+  const report = await HealthCheck.getReport();
+
+  return report.healthy ? response.ok(report) : response.badRequest(report);
 });
