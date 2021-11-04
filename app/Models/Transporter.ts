@@ -1,8 +1,7 @@
-import { BaseModel, column, HasMany, hasMany } from '@ioc:Adonis/Lucid/Orm';
+import { BaseModel, column } from '@ioc:Adonis/Lucid/Orm';
 import { DateTime } from 'luxon';
-import Movement from './Movement';
 
-export default class Sender extends BaseModel {
+export default class Transporter extends BaseModel {
   @column({ isPrimary: true })
   public id: number;
 
@@ -23,9 +22,6 @@ export default class Sender extends BaseModel {
 
   @column()
   public apiToken: string;
-
-  @hasMany(() => Movement)
-  public movements: HasMany<typeof Movement>;
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime;

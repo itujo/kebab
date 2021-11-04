@@ -1,17 +1,14 @@
 import BaseSchema from '@ioc:Adonis/Lucid/Schema';
 
-export default class Transporters extends BaseSchema {
-  protected tableName = 'transporters';
+export default class Statuses extends BaseSchema {
+  protected tableName = 'statuses';
 
   public async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id').primary();
-      table.string('name').notNullable();
-      table.string('address').notNullable();
-      table.string('document').notNullable().unique();
-      table.string('brd_user').notNullable();
-      table.string('brd_pwd').notNullable();
-      table.string('api_token').notNullable();
+
+      table.string('description').notNullable().unique();
+
       /**
        * Uses timestamptz for PostgreSQL and DATETIME2 for MSSQL
        */
