@@ -1,9 +1,8 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
 import Application from '@ioc:Adonis/Core/Application';
-import { StatusCsvRow } from 'App/Models/Status';
 import parse from 'csv-parse';
 import { createReadStream } from 'fs';
-import StatusBrudam from 'App/Models/StatusBrudam';
+import StatusBrudam, { StatusCsvRow } from 'App/Models/StatusBrudam';
 
 export default class StatusBrudamsController {
   public async index({}: HttpContextContract) {

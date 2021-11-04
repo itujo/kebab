@@ -1,9 +1,5 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
-import Application from '@ioc:Adonis/Core/Application';
-import Status, { StatusCsvRow } from 'App/Models/Status';
-import parse from 'csv-parse';
-import { createReadStream } from 'fs';
-import StatusBrudam from 'App/Models/StatusBrudam';
+import Status from 'App/Models/Status';
 export default class StatusesController {
   public async index({}: HttpContextContract) {}
 
@@ -49,61 +45,7 @@ export default class StatusesController {
     return response.send(statuses);
   }
 
-  public async store({ request, response }: HttpContextContract) {
-    const file = request.file('file', {
-      extnames: ['csv'],
-    });
-
-    if (!file) {
-      return response.badRequest({
-        status: 'error',
-        message: 'no file provided',
-      });
-    }
-
-    if (file && !file?.isValid) {
-      return file?.errors;
-    }
-
-    if (file) {
-      try {
-        await file?.move(Application.tmpPath('uploads/status'), {
-          overwrite: true,
-        });
-
-        const csvData: StatusCsvRow[] = [];
-
-        createReadStream(file.filePath!)
-          .pipe(
-            parse({
-              delimiter: ';',
-              columns: [`id_brd`, `descricao_brd`, `id_status`, `descricao_status`],
-              trim: true,
-              fromLine: 2,
-            })
-          )
-          .on('data', (row: StatusCsvRow) => {
-            csvData.push(row);
-          })
-          .on('end', async () => {
-            await Promise.all(
-              csvData.map(async (statusRow) => {
-                await StatusBrudam.create({
-                  idBrd: parseInt(statusRow.id_brd, 10),
-                  descriptionBrd: statusRow.descricao_brd.toLowerCase(),
-                  statusId: statusRow.id_status ? parseInt(statusRow.id_status, 10) : undefined,
-                });
-              })
-            );
-            return response.send('ok');
-          });
-      } catch (error) {
-        console.log(error.Exception);
-
-        return response.send(error);
-      }
-    }
-  }
+  public async store({}: HttpContextContract) {}
 
   public async show({}: HttpContextContract) {}
 

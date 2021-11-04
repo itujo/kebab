@@ -24,3 +24,10 @@ export default class StatusBrudam extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   public updatedAt: DateTime;
 }
+
+export type StatusCsvRow = {
+  id_brd: string;
+  descricao_brd: string;
+  id_status: string;
+  descricao_status: string;
+};
