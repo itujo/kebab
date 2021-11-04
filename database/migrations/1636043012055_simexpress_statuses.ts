@@ -1,15 +1,15 @@
 import BaseSchema from '@ioc:Adonis/Lucid/Schema';
 
-export default class DiretalogStatuses extends BaseSchema {
-  protected tableName = 'diretalog_statuses';
+export default class SimexpressStatuses extends BaseSchema {
+  protected tableName = 'simexpress_statuses';
 
   public async up() {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id');
 
-      table.string('description_direta').notNullable().unique();
+      table.string('description_simexpress').notNullable().unique();
 
-      table.integer('id_direta').unique().notNullable();
+      table.string('id_simexpress').unique().notNullable();
 
       table
         .integer('status_id')

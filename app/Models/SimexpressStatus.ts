@@ -2,15 +2,15 @@ import { DateTime } from 'luxon';
 import { BaseModel, belongsTo, BelongsTo, column } from '@ioc:Adonis/Lucid/Orm';
 import Status from './Status';
 
-export default class DiretalogStatus extends BaseModel {
+export default class SimexpressStatus extends BaseModel {
   @column({ isPrimary: true })
   public id: number;
 
   @column()
-  public descriptionDireta: string;
+  public descriptionSimexpress: string;
 
   @column()
-  public idDireta: number;
+  public idSimexpress: number;
 
   @column()
   public statusId: number;
@@ -25,9 +25,9 @@ export default class DiretalogStatus extends BaseModel {
   public updatedAt: DateTime;
 }
 
-export type StatusDiretaCsvRow = {
-  id_direta: string;
-  descricao_direta: string;
+export type StatusSimexpressCsvRow = {
+  id_simexpress: string;
+  descricao_simexpress: string;
   id_status: string;
   descricao_status: string;
 };

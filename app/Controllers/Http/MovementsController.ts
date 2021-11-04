@@ -80,7 +80,7 @@ export default class MovementsController {
                   await Sender.create({
                     name: mov.remetente,
                     address: 'rua 1',
-                    document: mov.cnpjRemetente,
+                    document: mov.cnpjRemetente.replace(/[^0-9]/gi, ''),
                   });
                 } catch (error) {}
               })
@@ -89,7 +89,10 @@ export default class MovementsController {
             await Promise.all(
               csvData.map(async (mov) => {
                 try {
-                  const sender = await Sender.findBy('document', mov.cnpjRemetente);
+                  const sender = await Sender.findBy(
+                    'document',
+                    mov.cnpjRemetente.replace(/[^0-9]/gi, '')
+                  );
 
                   await Movement.create({
                     minuta: mov.minuta,

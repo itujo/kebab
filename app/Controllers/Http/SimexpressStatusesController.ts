@@ -1,10 +1,10 @@
 import Application from '@ioc:Adonis/Core/Application';
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
-import DiretalogStatus, { StatusDiretaCsvRow } from 'App/Models/DiretalogStatus';
+import Simexpress, { StatusSimexpressCsvRow } from 'App/Models/SimexpressStatus';
 import parse from 'csv-parse';
 import { createReadStream } from 'fs';
 
-export default class DiretalogStatusesController {
+export default class SimexpressStatusesController {
   public async index({}: HttpContextContract) {}
 
   public async create({}: HttpContextContract) {}
@@ -31,7 +31,7 @@ export default class DiretalogStatusesController {
           overwrite: true,
         });
 
-        const csvData: StatusDiretaCsvRow[] = [];
+        const csvData: StatusSimexpressCsvRow[] = [];
 
         createReadStream(file.filePath!)
           .pipe(
@@ -42,15 +42,15 @@ export default class DiretalogStatusesController {
               fromLine: 2,
             })
           )
-          .on('data', (row: StatusDiretaCsvRow) => {
+          .on('data', (row: StatusSimexpressCsvRow) => {
             csvData.push(row);
           })
           .on('end', async () => {
             await Promise.all(
               csvData.map(async (statusRow) => {
-                await DiretalogStatus.create({
-                  idDireta: parseInt(statusRow.id_direta, 10),
-                  descriptionDireta: statusRow.descricao_direta.toLowerCase(),
+                await Simexpress.create({
+                  idSimexpress: parseInt(statusRow.id_simexpress, 10),
+                  descriptionSimexpress: statusRow.descricao_simexpress.toLowerCase(),
                   statusId: statusRow.id_status ? parseInt(statusRow.id_status, 10) : undefined,
                 });
               })

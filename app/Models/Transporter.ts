@@ -23,6 +23,9 @@ export default class Transporter extends BaseModel {
   @column()
   public apiToken: string;
 
+  @column()
+  public statusTable: string;
+
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime;
 

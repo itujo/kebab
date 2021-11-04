@@ -1,7 +1,10 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
 import Status from 'App/Models/Status';
 export default class StatusesController {
-  public async index({}: HttpContextContract) {}
+  public async index({}: HttpContextContract) {
+    const statuses = await Status.all();
+    return statuses;
+  }
 
   public async create({}: HttpContextContract) {}
 

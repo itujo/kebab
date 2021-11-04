@@ -12,7 +12,19 @@ export default class TransportersController {
 
   public async create({}: HttpContextContract) {}
 
-  public async store({}: HttpContextContract) {}
+  public async store({}: HttpContextContract) {
+    const direta = await Transporter.create({
+      name: 'diretalog',
+      document: '08612193000143',
+      address: 'AV MARQUES DE SAO VICENTE 682',
+      brdUser: '1',
+      brdPwd: '2',
+      apiToken: '123',
+      statusTable: 'simexpress_statuses',
+    });
+
+    return direta;
+  }
 
   public async show({}: HttpContextContract) {}
 
