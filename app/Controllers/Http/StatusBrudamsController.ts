@@ -1,53 +1,18 @@
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
 import Application from '@ioc:Adonis/Core/Application';
-import Status, { StatusCsvRow } from 'App/Models/Status';
+import { StatusCsvRow } from 'App/Models/Status';
 import parse from 'csv-parse';
 import { createReadStream } from 'fs';
 import StatusBrudam from 'App/Models/StatusBrudam';
-export default class StatusesController {
-  public async index({}: HttpContextContract) {}
+
+export default class StatusBrudamsController {
+  public async index({}: HttpContextContract) {
+    const brdStatuses = await StatusBrudam.query().preload('status');
+
+    return brdStatuses;
+  }
 
   public async create({}: HttpContextContract) {}
-
-  public async populate({ response }: HttpContextContract) {
-    const statuses = await Status.createMany([
-      {
-        description: 'entregue',
-      },
-      {
-        description: 'em rota',
-      },
-      {
-        description: 'transferencia',
-      },
-      {
-        description: 'entrada',
-      },
-      {
-        description: 'sinistro',
-      },
-      {
-        description: 'custodia',
-      },
-      {
-        description: 'devolucao',
-      },
-      {
-        description: 'travado',
-      },
-      {
-        description: 'avaria',
-      },
-      {
-        description: 'cancelado',
-      },
-      {
-        description: 'importado',
-      },
-    ]);
-
-    return response.send(statuses);
-  }
 
   public async store({ request, response }: HttpContextContract) {
     const file = request.file('file', {

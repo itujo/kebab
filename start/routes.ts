@@ -32,8 +32,10 @@ Route.group(() => {
   Route.group(() => {
     Route.post('/movement/import/:transporterId', 'MovementsController.import');
 
-    Route.resource('/movement', 'MovementsController'); // /api/v1/users
-    Route.resource('/transporter', 'TransportersController'); // /api/v1/posts
+    Route.resource('/movement', 'MovementsController'); // /api/v1/movement
+    Route.resource('/transporter', 'TransportersController'); // /api/v1/transporter
+    Route.resource('/status', 'StatusesController'); // /api/v1/status
+    Route.resource('/brudam/status', 'StatusBrudamsController'); // /api/v1/brudam/status
   }).prefix('/v1');
 
   // Route.resource('movement', 'MovementsController');
