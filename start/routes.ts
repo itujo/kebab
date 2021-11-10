@@ -33,9 +33,13 @@ Route.group(() => {
     Route.post('/movement/import/:transporterId', 'MovementsController.import');
 
     Route.resource('/movement', 'MovementsController'); // /api/v1/movement
-    Route.patch('/movement/simexpress/:transporterId', 'MovementsController.runSimexpress');
+    Route.patch(
+      '/movement/simexpress/:transporterId/:minuta?',
+      'MovementsController.runSimexpress'
+    ); // /api/v1/movement/'transporterId'/'minuta?:
 
     Route.resource('/transporter', 'TransportersController'); // /api/v1/transporter
+
     Route.resource('/simexpress/status', 'SimexpressStatusesController'); // /api/v1/transporter
     Route.resource('/status', 'StatusesController'); // /api/v1/status
     Route.resource('/brudam/status', 'StatusBrudamsController'); // /api/v1/brudam/status

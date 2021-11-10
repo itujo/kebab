@@ -39,6 +39,17 @@ export default class MovementsController {
       });
     }
 
+    const fileName = file.clientName.split('.');
+
+    const matches = /^\d{4}$/g.test(fileName[0]);
+
+    if (!matches) {
+      return response.badRequest({
+        status: 'error',
+        message: 'file name not allowed',
+      });
+    }
+
     if (file && !file?.isValid) {
       return file?.errors;
     }
@@ -89,6 +100,9 @@ export default class MovementsController {
               })
             );
 
+            let imported: any[] = [];
+            let errors: any[] = [];
+
             await Promise.all(
               csvData.map(async (mov) => {
                 try {
@@ -104,41 +118,57 @@ export default class MovementsController {
                     senderId: sender!.id,
                     transporterId: transporterId,
                   });
+
+                  imported.push(mov);
                 } catch (error) {
-                  console.log(error);
+                  errors.push(mov);
                 }
               })
             );
-          });
-      } catch (error) {
-        console.log(error.Exception);
 
-        return response.send(error);
+            return response.send({ errors, imported });
+          });
+        return response.send({
+          status: 'ok',
+          message: `success uploading file ${file.clientName}`,
+        });
+      } catch (error) {
+        console.log(error);
+
+        return response.internalServerError({
+          error: 'file already exists',
+          message: `file ${file.clientName} is already imported`,
+        });
       }
     }
   }
 
   public async runSimexpress({ request }: HttpContextContract) {
     const transporterId = request.param('transporterId');
+    const minuta = request.param('minuta');
 
     const brdAxios = await new Brudam(transporterId).createBrdAxios();
     const diretaAxios = await new DiretaCfg(transporterId).createAxios();
 
     const movements = await Movement.query()
-      .where({
-        transporterId,
-        // senderId: 110,
-        closed: false,
-        // minuta: 154982,
-      })
+      .where(
+        minuta
+          ? {
+              transporterId,
+              closed: false,
+              minuta,
+            }
+          : {
+              transporterId,
+              closed: false,
+            }
+      )
       .preload('sender')
       .preload('transporter');
-    // .limit(1);
-
-    // const toUpdate: Movement[] = [];
 
     let delivered: Movement[] = [];
     let notDelivered: Movement[] = [];
+    let noUpdate: Movement[] = [];
 
     for await (const movement of movements) {
       await diretaAxios
@@ -158,12 +188,7 @@ export default class MovementsController {
 
             const statusSim = await SimexpressStatus.findBy('id_simexpress', track.codigoInterno);
 
-            // if track is most recent than in db
-            if (luxonTrackDate > movement.updatedAt) {
-              // console.log(statusSim?.statusBrudamId);
-              // console.log(track.data);
-              // console.log(track.data.length);
-
+            if (movement.status === 'importado') {
               await brdAxios
                 .post(`/tracking/ocorrencias`, {
                   documentos: [
@@ -191,20 +216,72 @@ export default class MovementsController {
                   if (track.codigoInterno === '101101' && brdRes.data.status === 1) {
                     movement.closed = true;
                     movement.recebedor = 'x';
-                    movement.dataRecebimento = DateTime.fromFormat(track.data, 'yyyyMMdd');
+                    movement.dataRecebimento = luxonTrackDate;
                     movement.status = track.situacao.toLocaleLowerCase();
                     await movement.save();
                     delivered.push(movement);
                   } else {
-                    movement.status = track.situacao.toLocaleLowerCase();
-                    await movement.save();
-                    notDelivered.push(movement);
+                    if (track === tracking.at(-1)) {
+                      movement.status = track.situacao.toLocaleLowerCase();
+                      await movement.save();
+                      notDelivered.push(movement);
+                    }
                   }
-                  console.log(brdRes.data);
+                  console.dir(brdRes.data, { depth: null });
                 })
                 .catch((brdErr) => {
                   console.log(brdErr);
                 });
+            }
+            // if track is most recent than in db
+            if (luxonTrackDate > movement.updatedAt) {
+              await brdAxios
+                .post(`/tracking/ocorrencias`, {
+                  documentos: [
+                    {
+                      cliente: movement.sender.document,
+                      tipo: 'MINUTA',
+                      tipo_op: 'MINUTA',
+                      minuta: movement.minuta,
+                      eventos: [
+                        {
+                          codigo: statusSim?.statusBrudamId,
+                          data: track.data,
+                          obs: `: ${track.situacao.toLocaleLowerCase()}`,
+                          recebedor: {
+                            nome: 'x',
+                            documento: 'x',
+                            grau: '',
+                          },
+                        },
+                      ],
+                    },
+                  ],
+                })
+                .then(async (brdRes) => {
+                  if (track.codigoInterno === '101101' && brdRes.data.status === 1) {
+                    movement.closed = true;
+                    movement.recebedor = 'x';
+                    movement.dataRecebimento = luxonTrackDate;
+                    movement.status = track.situacao.toLocaleLowerCase();
+                    await movement.save();
+                    delivered.push(movement);
+                  } else {
+                    if (track === tracking.at(-1)) {
+                      movement.status = track.situacao.toLocaleLowerCase();
+                      await movement.save();
+                      notDelivered.push(movement);
+                    }
+                  }
+                  console.dir(brdRes.data, { depth: null });
+                })
+                .catch((brdErr) => {
+                  console.log(brdErr);
+                });
+            } else {
+              if (track === tracking.at(-1)) {
+                noUpdate.push(movement);
+              }
             }
           }
         })
@@ -213,8 +290,8 @@ export default class MovementsController {
         });
     }
 
-    // console.log(toUpdate);
-
-    return { delivered, notDelivered };
+    return { totalDocs: movements.length, delivered, notDelivered, noUpdate };
   }
+
+  public async runJadlog({ request }: HttpContextContract) {}
 }
