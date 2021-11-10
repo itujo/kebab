@@ -33,23 +33,19 @@ Route.group(() => {
     Route.post('/movement/import/:transporterId', 'MovementsController.import');
 
     Route.resource('/movement', 'MovementsController'); // /api/v1/movement
+    Route.patch('/movement/simexpress/:transporterId', 'MovementsController.runSimexpress');
+
     Route.resource('/transporter', 'TransportersController'); // /api/v1/transporter
+    Route.resource('/simexpress/status', 'SimexpressStatusesController'); // /api/v1/transporter
     Route.resource('/status', 'StatusesController'); // /api/v1/status
     Route.resource('/brudam/status', 'StatusBrudamsController'); // /api/v1/brudam/status
   }).prefix('/v1');
-
-  // Route.resource('movement', 'MovementsController');
-  // Route.resource('transporter', 'TransportersController');
-
-  // // Route.group(() => {
-  // // }).prefix('transporter');
 
   Route.get('/migrate', async () => {
     const migrator = new Migrator(Database, Application, {
       direction: 'up',
       dryRun: false,
-      // connectionName: 'pg',
-    });
+    }); //api/migrate
 
     await migrator.run();
     return migrator.migratedFiles;
@@ -59,5 +55,5 @@ Route.group(() => {
     const report = await HealthCheck.getReport();
 
     return report.healthy ? response.ok(report) : response.badRequest(report);
-  });
+  }); //api/health
 }).prefix('/api');

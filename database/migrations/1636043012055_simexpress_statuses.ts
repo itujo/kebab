@@ -7,9 +7,11 @@ export default class SimexpressStatuses extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id');
 
-      table.string('description_simexpress').notNullable().unique();
+      table.string('description_simexpress').notNullable();
 
       table.string('id_simexpress').unique().notNullable();
+
+      table.integer('status_brudam_id').unsigned().nullable();
 
       table
         .integer('status_id')

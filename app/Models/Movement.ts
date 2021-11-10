@@ -22,6 +22,9 @@ export default class Movement extends BaseModel {
   @column()
   public recebedor: string;
 
+  @column()
+  public status: string;
+
   @column.dateTime()
   public dataRecebimento: DateTime;
 

@@ -37,7 +37,7 @@ export default class SimexpressStatusesController {
           .pipe(
             parse({
               delimiter: ';',
-              columns: [`id_brd`, `descricao_brd`, `id_status`, `descricao_status`],
+              columns: [`id_simexpress`, `descricao_simexpress`, `id_brudam`, `descricao_status`],
               trim: true,
               fromLine: 2,
             })
@@ -49,9 +49,11 @@ export default class SimexpressStatusesController {
             await Promise.all(
               csvData.map(async (statusRow) => {
                 await Simexpress.create({
-                  idSimexpress: parseInt(statusRow.id_simexpress, 10),
+                  idSimexpress: statusRow.id_simexpress,
                   descriptionSimexpress: statusRow.descricao_simexpress.toLowerCase(),
-                  statusId: statusRow.id_status ? parseInt(statusRow.id_status, 10) : undefined,
+                  statusBrudamId: statusRow.id_brudam
+                    ? parseInt(statusRow.id_brudam, 10)
+                    : undefined,
                 });
               })
             );
