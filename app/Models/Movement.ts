@@ -1,5 +1,6 @@
 import { BaseModel, BelongsTo, belongsTo, column } from '@ioc:Adonis/Lucid/Orm';
 import { DateTime } from 'luxon';
+import Manifest from './Manifest';
 import Sender from './Sender';
 import Transporter from './Transporter';
 
@@ -41,7 +42,16 @@ export default class Movement extends BaseModel {
   public transporter: BelongsTo<typeof Transporter>;
 
   @column()
+  public manifestId: number;
+
+  @belongsTo(() => Manifest)
+  public manifest: BelongsTo<typeof Manifest>;
+
+  @column()
   public closed: boolean;
+
+  @column()
+  public dataStatus: DateTime;
 
   @column.dateTime({ autoCreate: true })
   public createdAt: DateTime;

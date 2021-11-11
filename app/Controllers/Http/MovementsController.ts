@@ -1,6 +1,7 @@
 import Application from '@ioc:Adonis/Core/Application';
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
 import { SimexpressApiReturn } from '@types';
+import Manifest from 'App/Models/Manifest';
 import Movement, { MovementCsvRow } from 'App/Models/Movement';
 import Sender from 'App/Models/Sender';
 import SimexpressStatus from 'App/Models/SimexpressStatus';
@@ -39,9 +40,9 @@ export default class MovementsController {
       });
     }
 
-    const fileName = file.clientName.split('.');
+    const fileName = file.clientName.split('.')[0];
 
-    const matches = /^\d{4}$/g.test(fileName[0]);
+    const matches = /^\d{4}$/g.test(fileName);
 
     if (!matches) {
       return response.badRequest({
@@ -54,10 +55,19 @@ export default class MovementsController {
       return file?.errors;
     }
 
+    const manifest = await Manifest.findBy('manifestNumber', fileName);
+
+    if (manifest) {
+      return response.badRequest({
+        status: 'error',
+        message: 'manifest already exists',
+      });
+    }
+
     if (file) {
       try {
         await file?.move(Application.tmpPath('uploads'), {
-          overwrite: false,
+          overwrite: true,
         });
 
         const csvData: MovementCsvRow[] = [];
@@ -88,45 +98,60 @@ export default class MovementsController {
             csvData.push(row);
           })
           .on('end', async () => {
-            await Promise.all(
-              csvData.map(async (mov) => {
-                try {
-                  await Sender.create({
-                    name: mov.remetente,
-                    address: 'rua 1',
-                    document: mov.cnpjRemetente.replace(/[^0-9]/gi, ''),
-                  });
-                } catch (error) {}
-              })
-            );
+            const manifest = await Manifest.create({
+              manifestNumber: fileName,
+              manifestDate: DateTime.fromFormat(csvData.at(-1)!.data, 'dd/MM/y'),
+            });
 
-            let imported: any[] = [];
-            let errors: any[] = [];
+            if (manifest.$isPersisted) {
+              await Promise.all(
+                csvData.map(async (mov) => {
+                  try {
+                    await Sender.create({
+                      name: mov.remetente,
+                      address: 'rua 1',
+                      document: mov.cnpjRemetente.replace(/[^0-9]/gi, ''),
+                    });
+                  } catch (error) {}
+                })
+              );
 
-            await Promise.all(
-              csvData.map(async (mov) => {
-                try {
-                  const sender = await Sender.findBy(
-                    'document',
-                    mov.cnpjRemetente.replace(/[^0-9]/gi, '')
-                  );
+              let imported: Movement[] = [];
+              let errors: any[] = [];
 
-                  await Movement.create({
-                    minuta: mov.minuta,
-                    nf: mov.notas,
-                    dataEmissao: DateTime.fromFormat(mov.data, 'dd/MM/y'),
-                    senderId: sender!.id,
-                    transporterId: transporterId,
-                  });
+              await Promise.all(
+                csvData.map(async (mov) => {
+                  try {
+                    const sender = await Sender.findBy(
+                      'document',
+                      mov.cnpjRemetente.replace(/[^0-9]/gi, '')
+                    );
 
-                  imported.push(mov);
-                } catch (error) {
-                  errors.push(mov);
-                }
-              })
-            );
+                    const dataMov = DateTime.fromFormat(mov.data, 'dd/MM/y');
 
-            return response.send({ errors, imported });
+                    const movement = await Movement.create({
+                      minuta: mov.minuta,
+                      nf: mov.notas,
+                      dataEmissao: dataMov,
+                      senderId: sender!.id,
+                      transporterId: transporterId,
+                      manifestId: manifest.id,
+                    });
+
+                    imported.push(movement);
+                  } catch (error) {
+                    errors.push(mov);
+                  }
+                })
+              );
+
+              return response.send({ errors, imported });
+            } else {
+              return response.internalServerError({
+                status: 'error',
+                message: `error creating manifest ${fileName}`,
+              });
+            }
           });
         return response.send({
           status: 'ok',
@@ -186,7 +211,10 @@ export default class MovementsController {
                 ? DateTime.fromFormat(track.data, 'yyyyMMdd hh:mm:ss')
                 : DateTime.fromFormat(track.data, 'yyyyMMdd');
 
-            const statusSim = await SimexpressStatus.findBy('id_simexpress', track.codigoInterno);
+            const statusSim = await SimexpressStatus.findBy(
+              'id_simexpress',
+              parseInt(track.codigoInterno, 10)
+            );
 
             if (movement.status === 'importado') {
               await brdAxios
@@ -218,6 +246,7 @@ export default class MovementsController {
                     movement.recebedor = 'x';
                     movement.dataRecebimento = luxonTrackDate;
                     movement.status = track.situacao.toLocaleLowerCase();
+                    movement.dataStatus = luxonTrackDate;
                     await movement.save();
                     delivered.push(movement);
                   } else {
@@ -234,7 +263,8 @@ export default class MovementsController {
                 });
             }
             // if track is most recent than in db
-            if (luxonTrackDate > movement.updatedAt) {
+
+            if (luxonTrackDate > movement.dataStatus) {
               await brdAxios
                 .post(`/tracking/ocorrencias`, {
                   documentos: [
@@ -293,5 +323,5 @@ export default class MovementsController {
     return { totalDocs: movements.length, delivered, notDelivered, noUpdate };
   }
 
-  public async runJadlog({ request }: HttpContextContract) {}
+  public async runJadlog({}: HttpContextContract) {}
 }

@@ -55,7 +55,6 @@ export default class StatusBrudamsController {
                 await StatusBrudam.create({
                   idBrd: parseInt(statusRow.id_brd, 10),
                   descriptionBrd: statusRow.descricao_brd.toLowerCase(),
-                  statusId: statusRow.id_status ? parseInt(statusRow.id_status, 10) : undefined,
                 });
               })
             );
