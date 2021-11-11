@@ -209,59 +209,21 @@ export default class MovementsController {
             const luxonTrackDate =
               track.data.length > 8
                 ? DateTime.fromFormat(track.data, 'yyyyMMdd hh:mm:ss')
-                : DateTime.fromFormat(track.data, 'yyyyMMdd');
+                : DateTime.fromFormat(`${track.data} 11:11:11`, 'yyyyMMdd hh:mm:ss');
 
             const statusSim = await SimexpressStatus.findBy(
               'id_simexpress',
               parseInt(track.codigoInterno, 10)
             );
 
-            if (movement.status === 'importado') {
-              await brdAxios
-                .post(`/tracking/ocorrencias`, {
-                  documentos: [
-                    {
-                      cliente: movement.sender.document,
-                      tipo: 'MINUTA',
-                      tipo_op: 'MINUTA',
-                      minuta: movement.minuta,
-                      eventos: [
-                        {
-                          codigo: statusSim?.statusBrudamId,
-                          data: track.data,
-                          obs: `: ${track.situacao.toLocaleLowerCase()}`,
-                          recebedor: {
-                            nome: 'x',
-                            documento: 'x',
-                            grau: '',
-                          },
-                        },
-                      ],
-                    },
-                  ],
-                })
-                .then(async (brdRes) => {
-                  if (track.codigoInterno === '101101' && brdRes.data.status === 1) {
-                    movement.closed = true;
-                    movement.recebedor = 'x';
-                    movement.dataRecebimento = luxonTrackDate;
-                    movement.status = track.situacao.toLocaleLowerCase();
-                    movement.dataStatus = luxonTrackDate;
-                    await movement.save();
-                    delivered.push(movement);
-                  } else {
-                    if (track === tracking.at(-1)) {
-                      movement.status = track.situacao.toLocaleLowerCase();
-                      await movement.save();
-                      notDelivered.push(movement);
-                    }
-                  }
-                  console.dir(brdRes.data, { depth: null });
-                })
-                .catch((brdErr) => {
-                  console.log(brdErr);
-                });
+            if (track.codigoInterno === '997') {
+              movement.status = track.situacao.toLocaleLowerCase();
+              movement.dataStatus = DateTime.now();
+
+              await movement.save();
+              notDelivered.push(movement);
             }
+
             // if track is most recent than in db
 
             if (luxonTrackDate > movement.dataStatus) {
@@ -294,18 +256,22 @@ export default class MovementsController {
                     movement.recebedor = 'x';
                     movement.dataRecebimento = luxonTrackDate;
                     movement.status = track.situacao.toLocaleLowerCase();
+                    movement.dataStatus = luxonTrackDate;
+
                     await movement.save();
                     delivered.push(movement);
                   } else {
                     if (track === tracking.at(-1)) {
                       movement.status = track.situacao.toLocaleLowerCase();
+                      movement.dataStatus = luxonTrackDate;
+
                       await movement.save();
                       notDelivered.push(movement);
                     }
                   }
                   console.dir(brdRes.data, { depth: null });
                 })
-                .catch((brdErr) => {
+                .catch(async (brdErr) => {
                   console.log(brdErr);
                 });
             } else {
