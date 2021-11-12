@@ -224,9 +224,16 @@ export default class MovementsController {
               notDelivered.push(movement);
             }
 
+            console.log({
+              luxonTrackDate,
+              data: movement.dataStatus,
+            });
+
+            console.log(luxonTrackDate >= movement.dataStatus);
+
             // if track is most recent than in db
 
-            if (luxonTrackDate > movement.dataStatus) {
+            if (luxonTrackDate >= movement.dataStatus) {
               await brdAxios
                 .post(`/tracking/ocorrencias`, {
                   documentos: [
