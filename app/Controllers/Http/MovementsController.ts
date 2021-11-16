@@ -282,15 +282,15 @@ export default class MovementsController {
       totalDocs: movements.length,
       delivered: {
         docs: delivered.length,
-        ...delivered,
+        delivered,
       },
       notDelivered: {
         docs: delivered.length,
-        ...notDelivered,
+        notDelivered,
       },
       noUpdate: {
         docs: delivered.length,
-        ...noUpdate,
+        noUpdate,
       },
     };
   }
