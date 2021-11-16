@@ -94,7 +94,6 @@ export default class MovementsController {
             })
           )
           .on('data', (row: MovementCsvRow) => {
-            // console.log(row.cliente);
             csvData.push(row);
           })
           .on('end', async () => {
@@ -158,8 +157,6 @@ export default class MovementsController {
           message: `success uploading file ${file.clientName}`,
         });
       } catch (error) {
-        console.log(error);
-
         return response.internalServerError({
           error: 'file already exists',
           message: `file ${file.clientName} is already imported`,
@@ -191,9 +188,9 @@ export default class MovementsController {
       .preload('sender')
       .preload('transporter');
 
-    let delivered: Movement[] = [];
-    let notDelivered: Movement[] = [];
-    let noUpdate: Movement[] = [];
+    let delivered: string[] = [];
+    let notDelivered: string[] = [];
+    let noUpdate: string[] = [];
 
     for await (const movement of movements) {
       await diretaAxios
@@ -221,15 +218,8 @@ export default class MovementsController {
               movement.dataStatus = DateTime.now();
 
               await movement.save();
-              notDelivered.push(movement);
+              notDelivered.push(movement.minuta);
             }
-
-            console.log({
-              luxonTrackDate,
-              data: movement.dataStatus,
-            });
-
-            console.log(luxonTrackDate >= movement.dataStatus);
 
             // if track is most recent than in db
 
@@ -266,34 +256,43 @@ export default class MovementsController {
                     movement.dataStatus = luxonTrackDate;
 
                     await movement.save();
-                    delivered.push(movement);
+                    delivered.push(movement.minuta);
                   } else {
                     if (track === tracking.at(-1)) {
                       movement.status = track.situacao.toLocaleLowerCase();
                       movement.dataStatus = luxonTrackDate;
 
                       await movement.save();
-                      notDelivered.push(movement);
+                      notDelivered.push(movement.minuta);
                     }
                   }
-                  console.dir(brdRes.data, { depth: null });
                 })
-                .catch(async (brdErr) => {
-                  console.log(brdErr);
-                });
+                .catch(async () => {});
             } else {
               if (track === tracking.at(-1)) {
-                noUpdate.push(movement);
+                noUpdate.push(movement.minuta);
               }
             }
           }
         })
-        .catch((err) => {
-          console.log(err);
-        });
+        .catch(() => {});
     }
 
-    return { totalDocs: movements.length, delivered, notDelivered, noUpdate };
+    return {
+      totalDocs: movements.length,
+      delivered: {
+        docs: delivered.length,
+        ...delivered,
+      },
+      notDelivered: {
+        docs: delivered.length,
+        ...notDelivered,
+      },
+      noUpdate: {
+        docs: delivered.length,
+        ...noUpdate,
+      },
+    };
   }
 
   public async runJadlog({}: HttpContextContract) {}
