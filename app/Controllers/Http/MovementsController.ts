@@ -354,7 +354,44 @@ export default class MovementsController {
               const movement = movements[count];
 
               if (evento.status.toLowerCase() === 'entregue') {
-                console.log(consulta.tracking.recebedor);
+                await brdAxios
+                  .post(`/tracking/ocorrencias`, {
+                    documentos: [
+                      {
+                        cliente: movement.sender.document,
+                        tipo: 'MINUTA',
+                        tipo_op: 'MINUTA',
+                        minuta: movement.minuta,
+                        eventos: [
+                          {
+                            codigo: 1,
+                            data: evento.data,
+                            obs: `: ${evento.status.toLocaleLowerCase()}`,
+                            recebedor: {
+                              nome: consulta.tracking.recebedor?.nome,
+                              documento: consulta.tracking.recebedor?.doc,
+                              grau: '',
+                            },
+                          },
+                        ],
+                      },
+                    ],
+                  })
+                  .then(async (brdRes) => {
+                    if (brdRes.data.status === 1) {
+                      movement.closed = true;
+                      movement.recebedor = consulta.tracking.recebedor?.nome!;
+                      movement.dataRecebimento = DateTime.fromISO(
+                        consulta.tracking.recebedor?.data!
+                      );
+                      movement.status = evento.status.toLocaleLowerCase();
+                      movement.dataStatus = luxonTrackDate;
+
+                      await movement.save();
+                      delivered.push(movement.minuta);
+                    }
+                  })
+                  .catch(async () => {});
               }
 
               // if (luxonTrackDate >= movement.dataStatus) {
@@ -416,6 +453,6 @@ export default class MovementsController {
       // console.log(consultas);
     }
 
-    return movements;
+    return delivered;
   }
 }
