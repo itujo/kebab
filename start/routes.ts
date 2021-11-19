@@ -38,6 +38,8 @@ Route.group(() => {
       'MovementsController.runSimexpress'
     ); // /api/v1/movement/'transporterId'/'minuta?:
 
+    Route.patch('/movement/jadlog/:transporterId/:minuta?', 'MovementsController.runJadlog'); // /api/v1/movement/jadlog/'transporterId'/'minuta?:
+
     Route.resource('/transporter', 'TransportersController'); // /api/v1/transporter
 
     Route.resource('/simexpress/status', 'SimexpressStatusesController'); // /api/v1/transporter

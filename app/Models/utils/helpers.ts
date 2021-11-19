@@ -80,4 +80,35 @@ class DiretaCfg {
   }
 }
 
-export { Brudam, DiretaCfg };
+class JadLogCfg {
+  protected transporterId: number;
+
+  constructor(transporterId: number) {
+    this.transporterId = transporterId;
+  }
+
+  /**
+   * getTransporterId: returns transporter id
+   */
+  public getTransporterId() {
+    return this.transporterId;
+  }
+
+  /**
+   * createBrdAxios: creates and returns an axios instace with transporter configs
+   */
+  public async createAxios() {
+    const data = await Transporter.find(this.transporterId);
+
+    const { apiToken } = data!;
+
+    return axios.create({
+      baseURL: `http://www.jadlog.com.br/embarcador/api`,
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+      },
+    });
+  }
+}
+
+export { Brudam, DiretaCfg, JadLogCfg };

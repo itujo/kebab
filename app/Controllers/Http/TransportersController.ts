@@ -21,7 +21,18 @@ export default class TransportersController {
       statusTable: 'simexpress_statuses',
     });
 
-    return direta;
+    const jadlog = await Transporter.create({
+      name: 'jadlog',
+      document: '04884082000135',
+      address: 'AV JORNALISTA PAULO ZINGG, 810',
+      brdUser: '46277c1e11ce9d016499fa44d99afdbd',
+      brdPwd: 'ee7f4264885d5e4f789fbb443dc259995838fb22668d372a8e3e82377902cf09',
+      apiToken:
+        'eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOjcwNTg1LCJkdCI6IjIwMjEwMTEyIn0.w4k5ll8JvhXZteV8i5aWAaFhl4KF2uum1wiB0xXqjx0',
+      statusTable: 'jadlog_statuses',
+    });
+
+    return { direta, jadlog };
   }
 
   public async show({}: HttpContextContract) {}

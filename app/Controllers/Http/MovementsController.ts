@@ -1,12 +1,12 @@
 import Application from '@ioc:Adonis/Core/Application';
 import { HttpContextContract } from '@ioc:Adonis/Core/HttpContext';
-import { SimexpressApiReturn } from '@types';
+import { Consulta, ConsultaJad, SimexpressApiReturn } from '@types';
 import Manifest from 'App/Models/Manifest';
 import Movement, { MovementCsvRow } from 'App/Models/Movement';
 import Sender from 'App/Models/Sender';
 import SimexpressStatus from 'App/Models/SimexpressStatus';
 import Transporter from 'App/Models/Transporter';
-import { Brudam, DiretaCfg } from 'App/Models/utils/helpers';
+import { Brudam, DiretaCfg, JadLogCfg } from 'App/Models/utils/helpers';
 import parse from 'csv-parse';
 import { createReadStream } from 'fs';
 import { DateTime } from 'luxon';
@@ -148,18 +148,18 @@ export default class MovementsController {
             } else {
               return response.internalServerError({
                 status: 'error',
-                message: `error creating manifest ${fileName}`,
+                message: `erro ao importar manifesto: ${fileName}`,
               });
             }
           });
         return response.send({
           status: 'ok',
-          message: `success uploading file ${file.clientName}`,
+          message: `manifesto ${file.clientName} importado com sucesso`,
         });
       } catch (error) {
         return response.internalServerError({
-          error: 'file already exists',
-          message: `file ${file.clientName} is already imported`,
+          status: 'error',
+          message: `manifesto ${file.clientName} ja foi importado`,
         });
       }
     }
@@ -295,5 +295,127 @@ export default class MovementsController {
     };
   }
 
-  public async runJadlog({}: HttpContextContract) {}
+  public async runJadlog({ request }: HttpContextContract) {
+    const transporterId = request.param('transporterId');
+    const minuta = request.param('minuta');
+
+    const brdAxios = await new Brudam(transporterId).createBrdAxios();
+    const jadlogCfg = await new JadLogCfg(transporterId).createAxios();
+
+    const movements = await Movement.query()
+      .where(
+        minuta
+          ? {
+              transporterId,
+              closed: false,
+              minuta,
+            }
+          : {
+              transporterId,
+              closed: false,
+            }
+      )
+      .preload('sender')
+      .preload('transporter');
+
+    let delivered: string[] = [];
+    let notDelivered: string[] = [];
+    let noUpdate: string[] = [];
+
+    for (let index = 0; index < movements.length; index += 50) {
+      const { data } = await jadlogCfg.post(`/tracking/consultar`, {
+        consulta: movements.slice(index, index + 50).map((movement) => {
+          return {
+            df: {
+              nf: movement.nf,
+              cnpjRemetente: movement.sender.document,
+              tpDocumento: 1,
+            },
+          };
+        }),
+      });
+
+      const consultas = data.consulta as Consulta[];
+
+      if (consultas.length > 0) {
+        let count = 0;
+        for await (const consulta of consultas) {
+          if (consulta.error) {
+          } else if (
+            consulta.tracking.status.toLowerCase() !== movements[count].status.toLowerCase()
+          ) {
+            const { eventos } = consulta.tracking;
+
+            // console.log(eventos);
+
+            for await (const evento of eventos) {
+              const luxonTrackDate = DateTime.fromFormat(evento.data, 'yyyy-MM-dd hh:mm:ss');
+
+              const movement = movements[count];
+
+              if (evento.status.toLowerCase() === 'entregue') {
+                console.log(consulta.tracking.recebedor);
+              }
+
+              // if (luxonTrackDate >= movement.dataStatus) {
+              //   await brdAxios
+              //     .post(`/tracking/ocorrencias`, {
+              //       documentos: [
+              //         {
+              //           cliente: movement.sender.document,
+              //           tipo: 'MINUTA',
+              //           tipo_op: 'MINUTA',
+              //           minuta: movement.minuta,
+              //           eventos: [
+              //             {
+              //               codigo: statusSim?.statusBrudamId,
+              //               data: evento.data,
+              //               obs: `: ${evento.status.toLocaleLowerCase()}`,
+              //               recebedor: {
+              //                 nome: consulta.tracking.,
+              //                 documento: 'x',
+              //                 grau: '',
+              //               },
+              //             },
+              //           ],
+              //         },
+              //       ],
+              //     })
+              //     .then(async (brdRes) => {
+              //       if (track.codigoInterno === '101101' && brdRes.data.status === 1) {
+              //         movement.closed = true;
+              //         movement.recebedor = 'x';
+              //         movement.dataRecebimento = luxonTrackDate;
+              //         movement.status = track.situacao.toLocaleLowerCase();
+              //         movement.dataStatus = luxonTrackDate;
+
+              //         await movement.save();
+              //         delivered.push(movement.minuta);
+              //       } else {
+              //         if (track === tracking.at(-1)) {
+              //           movement.status = track.situacao.toLocaleLowerCase();
+              //           movement.dataStatus = luxonTrackDate;
+
+              //           await movement.save();
+              //           notDelivered.push(movement.minuta);
+              //         }
+              //       }
+              //     })
+              //     .catch(async () => {});
+              // }
+
+              // console.log(evento.data);
+
+              // console.log(luxonTrackDate.toString());
+            }
+          }
+          count += 1;
+        }
+      }
+
+      // console.log(consultas);
+    }
+
+    return movements;
+  }
 }
