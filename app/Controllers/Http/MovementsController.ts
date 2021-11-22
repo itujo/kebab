@@ -5,6 +5,7 @@ import Manifest from 'App/Models/Manifest';
 import Movement, { MovementCsvRow } from 'App/Models/Movement';
 import Sender from 'App/Models/Sender';
 import SimexpressStatus from 'App/Models/SimexpressStatus';
+import JadlogStatus from 'App/Models/JadlogStatus';
 import Transporter from 'App/Models/Transporter';
 import { Brudam, DiretaCfg, JadLogCfg } from 'App/Models/utils/helpers';
 import parse from 'csv-parse';
@@ -214,10 +215,12 @@ export default class MovementsController {
             );
 
             if (track.codigoInterno === '997') {
-              movement.status = track.situacao.toLocaleLowerCase();
-              movement.dataStatus = DateTime.now();
+              if (movement.status !== track.situacao.toLocaleLowerCase()) {
+                movement.status = track.situacao.toLocaleLowerCase();
+                movement.dataStatus = DateTime.now();
 
-              await movement.save();
+                await movement.save();
+              }
               notDelivered.push(movement.minuta);
             }
 
@@ -322,73 +325,77 @@ export default class MovementsController {
     let notDelivered: string[] = [];
     let noUpdate: string[] = [];
 
-    for (let index = 0; index < movements.length; index += 50) {
+    for await (const movement of movements) {
       const { data } = await jadlogCfg.post(`/tracking/consultar`, {
-        consulta: movements.slice(index, index + 50).map((movement) => {
-          return {
+        consulta: [
+          {
             df: {
               nf: movement.nf,
               cnpjRemetente: movement.sender.document,
               tpDocumento: 1,
             },
-          };
-        }),
+          },
+        ],
       });
 
       const consultas = data.consulta as Consulta[];
+      const consulta = consultas[0];
 
-      if (consultas.length > 0) {
-        let count = 0;
-        for await (const consulta of consultas) {
-          const movement = movements[count];
-          if (consulta.error) {
-          } else if (
-            consulta.tracking.status.toLowerCase() !== movements[count].status.toLowerCase()
-          ) {
-            const { eventos } = consulta.tracking;
+      if (consulta.error) {
+        // console.log(consulta.error);
 
-            for await (const evento of eventos) {
-              const luxonTrackDate = DateTime.fromFormat(evento.data, 'yyyy-MM-dd hh:mm:ss');
+        if (movement.status !== consulta.error.descricao.toLowerCase()) {
+          movement.status = consulta.error.descricao.toLowerCase();
+          movement.dataStatus = DateTime.now();
 
-              if (luxonTrackDate > movement.dataStatus) {
-                if (evento.status.toLowerCase() === 'entregue') {
-                  await brdAxios
-                    .post(`/tracking/ocorrencias`, {
-                      documentos: [
-                        {
-                          cliente: movement.sender.document,
-                          tipo: 'MINUTA',
-                          tipo_op: 'MINUTA',
-                          minuta: movement.minuta,
-                          eventos: [
-                            {
-                              codigo: 1,
-                              data: evento.data,
-                              obs: `: ${evento.status.toLocaleLowerCase()}`,
-                              recebedor: {
-                                nome: consulta.tracking.recebedor?.nome,
-                                documento: consulta.tracking.recebedor?.doc,
-                                grau: '',
-                              },
-                            },
-                          ],
+          await movement.save();
+        }
+      } else {
+        const { eventos } = consulta.tracking;
+
+        for await (const evento of eventos) {
+          const luxonTrackDate = DateTime.fromFormat(evento.data, 'yyyy-MM-dd hh:mm:ss');
+
+          if (luxonTrackDate > movement.dataStatus) {
+            const status = await JadlogStatus.findBy(
+              'description_jadlog',
+              evento.status.toLowerCase()
+            );
+            await brdAxios
+              .post(`/tracking/ocorrencias`, {
+                documentos: [
+                  {
+                    cliente: movement.sender.document,
+                    tipo: 'MINUTA',
+                    tipo_op: 'MINUTA',
+                    minuta: movement.minuta,
+                    eventos: [
+                      {
+                        codigo: status?.statusBrudamId,
+                        data: evento.data,
+                        obs: `: ${evento.status.toLocaleLowerCase()} - ${evento.unidade.toLowerCase()}`,
+                        recebedor: {
+                          nome: consulta.tracking.recebedor?.nome || 'x',
+                          documento: consulta.tracking.recebedor?.doc || 'x',
+                          grau: '',
                         },
-                      ],
-                    })
-                    .then(async (brdRes) => {
-                      if (brdRes.data.status === 1) {
-                        movement.closed = true;
-                        movement.recebedor = consulta.tracking.recebedor?.nome!;
-                        movement.dataRecebimento = DateTime.fromISO(
-                          consulta.tracking.recebedor?.data!
-                        );
-                        movement.status = evento.status.toLocaleLowerCase();
-                        movement.dataStatus = luxonTrackDate;
-                        await movement.save();
-                        delivered.push(movement.minuta);
-                      }
-                    })
-                    .catch(async () => {});
+                      },
+                    ],
+                  },
+                ],
+              })
+              .then(async (brdRes) => {
+                // console.dir(brdRes.data, { depth: null });
+
+                if (evento.status === 'ENTREGUE' && brdRes.data.status === 1) {
+                  movement.closed = true;
+                  movement.recebedor = consulta.tracking.recebedor?.nome;
+                  movement.dataRecebimento = luxonTrackDate;
+                  movement.status = evento.status.toLocaleLowerCase();
+                  movement.dataStatus = luxonTrackDate;
+
+                  await movement.save();
+                  delivered.push(movement.minuta);
                 } else {
                   if (evento === eventos.at(-1)) {
                     movement.status = evento.status.toLocaleLowerCase();
@@ -398,18 +405,15 @@ export default class MovementsController {
                     notDelivered.push(movement.minuta);
                   }
                 }
-              } else {
-                if (evento === eventos.at(-1)) {
-                  noUpdate.push(movement.minuta);
-                }
-              }
-            }
+              })
+              .catch(async () => {
+                // console.dir(err, { depth: null });
+              });
           } else {
-            if (!noUpdate.includes(movement.minuta)) {
+            if (evento === eventos.at(-1)) {
               noUpdate.push(movement.minuta);
             }
           }
-          count += 1;
         }
       }
     }

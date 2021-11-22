@@ -21,13 +21,13 @@ export default class Movement extends BaseModel {
   public obs: string;
 
   @column()
-  public recebedor: string;
+  public recebedor?: string;
 
   @column()
   public status: string;
 
   @column.dateTime()
-  public dataRecebimento: DateTime;
+  public dataRecebimento?: DateTime;
 
   @column()
   public senderId: number;

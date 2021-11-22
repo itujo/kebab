@@ -105,8 +105,6 @@ export interface Volume {
 }
 
 export interface ConsultaError {
-  error: {
-    id: number;
-    descricao: string;
-  };
+  id: number;
+  descricao: string;
 }
