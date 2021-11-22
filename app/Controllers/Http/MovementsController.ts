@@ -339,8 +339,8 @@ export default class MovementsController {
 
       if (consultas.length > 0) {
         let count = 0;
-        const movement = movements[count];
         for await (const consulta of consultas) {
+          const movement = movements[count];
           if (consulta.error) {
           } else if (
             consulta.tracking.status.toLowerCase() !== movements[count].status.toLowerCase()
@@ -384,25 +384,30 @@ export default class MovementsController {
                         );
                         movement.status = evento.status.toLocaleLowerCase();
                         movement.dataStatus = luxonTrackDate;
-
                         await movement.save();
                         delivered.push(movement.minuta);
                       }
                     })
                     .catch(async () => {});
                 } else {
-                  movement.status = evento.status.toLocaleLowerCase();
-                  movement.dataStatus = luxonTrackDate;
+                  if (evento === eventos.at(-1)) {
+                    movement.status = evento.status.toLocaleLowerCase();
+                    movement.dataStatus = luxonTrackDate;
 
-                  await movement.save();
-                  notDelivered.push(movement.minuta);
+                    await movement.save();
+                    notDelivered.push(movement.minuta);
+                  }
                 }
               } else {
-                noUpdate.push(movement.minuta);
+                if (evento === eventos.at(-1)) {
+                  noUpdate.push(movement.minuta);
+                }
               }
             }
           } else {
-            noUpdate.push(movement.minuta);
+            if (!noUpdate.includes(movement.minuta)) {
+              noUpdate.push(movement.minuta);
+            }
           }
           count += 1;
         }
