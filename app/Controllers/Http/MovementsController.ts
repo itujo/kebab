@@ -101,6 +101,7 @@ export default class MovementsController {
             const manifest = await Manifest.create({
               manifestNumber: fileName,
               manifestDate: DateTime.fromFormat(csvData.at(-1)!.data, 'dd/MM/y'),
+              transporterId,
             });
 
             if (manifest.$isPersisted) {
@@ -227,6 +228,10 @@ export default class MovementsController {
             // if track is most recent than in db
 
             if (luxonTrackDate >= movement.dataStatus) {
+              if (track.situacao.toLowerCase() === movement.status.toLowerCase()) {
+                noUpdate.push(movement.minuta);
+                return;
+              }
               await brdAxios
                 .post(`/tracking/ocorrencias`, {
                   documentos: [
@@ -385,8 +390,6 @@ export default class MovementsController {
                 ],
               })
               .then(async (brdRes) => {
-                // console.dir(brdRes.data, { depth: null });
-
                 if (evento.status === 'ENTREGUE' && brdRes.data.status === 1) {
                   movement.closed = true;
                   movement.recebedor = consulta.tracking.recebedor?.nome;
@@ -406,9 +409,7 @@ export default class MovementsController {
                   }
                 }
               })
-              .catch(async () => {
-                // console.dir(err, { depth: null });
-              });
+              .catch(async () => {});
           } else {
             if (evento === eventos.at(-1)) {
               noUpdate.push(movement.minuta);
